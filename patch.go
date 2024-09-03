@@ -143,6 +143,15 @@ var UnitTypes = map[string]([]UnitParameter){
 		{Name: "sustain", MinValue: 0, MaxValue: 128, CanSet: true, CanModulate: true},
 		{Name: "release", MinValue: 0, MaxValue: 128, CanSet: true, CanModulate: true},
 		{Name: "gain", MinValue: 0, MaxValue: 128, CanSet: true, CanModulate: true}},
+	"envel210": []UnitParameter{
+		{Name: "stereo", MinValue: 0, MaxValue: 1, CanSet: true, CanModulate: false},
+		{Name: "attack", MinValue: 0, MaxValue: 128, CanSet: true, CanModulate: true},
+		{Name: "exp_attack", MinValue: -65, MaxValue: 64, CanSet: true, CanModulate: true},
+		{Name: "decay", MinValue: 0, MaxValue: 128, CanSet: true, CanModulate: true},
+		{Name: "exp_decay", MinValue: -65, MaxValue: 64, CanSet: true, CanModulate: true},
+		{Name: "sustain", MinValue: 0, MaxValue: 128, CanSet: true, CanModulate: true},
+		{Name: "release", MinValue: 0, MaxValue: 128, CanSet: true, CanModulate: true},
+		{Name: "gain", MinValue: 0, MaxValue: 128, CanSet: true, CanModulate: true}},
 	"noise": []UnitParameter{
 		{Name: "stereo", MinValue: 0, MaxValue: 1, CanSet: true, CanModulate: false},
 		{Name: "shape", MinValue: 0, MaxValue: 128, CanSet: true, CanModulate: true},
@@ -240,7 +249,7 @@ func (u *Unit) StackChange() int {
 	switch u.Type {
 	case "addp", "mulp", "pop", "out", "outaux", "aux":
 		return -1 - u.Parameters["stereo"]
-	case "envelope", "oscillator", "push", "noise", "receive", "loadnote", "loadval", "in", "compressor":
+	case "envelope", "envel210", "oscillator", "push", "noise", "receive", "loadnote", "loadval", "in", "compressor":
 		return 1 + u.Parameters["stereo"]
 	case "pan":
 		return 1 - u.Parameters["stereo"]
@@ -260,7 +269,7 @@ func (u *Unit) StackNeed() int {
 		return 0
 	}
 	switch u.Type {
-	case "", "envelope", "oscillator", "noise", "receive", "loadnote", "loadval", "in":
+	case "", "envelope", "envel210", "oscillator", "noise", "receive", "loadnote", "loadval", "in":
 		return 0
 	case "mulp", "mul", "add", "addp", "xch":
 		return 2 * (1 + u.Parameters["stereo"])
@@ -388,7 +397,7 @@ func (p Patch) ParamHintString(instrIndex, unitIndex int, param string) string {
 	unit := instr.Units[unitIndex]
 	value := unit.Parameters[param]
 	switch unit.Type {
-	case "envelope":
+	case "envelope", "envel210":
 		switch param {
 		case "attack":
 			return engineeringTime(math.Pow(2, 24*float64(value)/128) / 44100)
@@ -396,6 +405,11 @@ func (p Patch) ParamHintString(instrIndex, unitIndex int, param string) string {
 			return engineeringTime(math.Pow(2, 24*float64(value)/128) / 44100 * (1 - float64(unit.Parameters["sustain"])/128))
 		case "release":
 			return engineeringTime(math.Pow(2, 24*float64(value)/128) / 44100 * float64(unit.Parameters["sustain"]) / 128)
+		// "envel210" only:
+		case "exp_attack":
+			fallthrough
+		case "exp_decay":
+			return fmt.Sprintf("%.2f s", float64(value)/8)
 		}
 	case "oscillator":
 		switch param {

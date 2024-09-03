@@ -74,34 +74,42 @@ func (m *Model) WriteSong(w io.WriteCloser) {
 	m.completeAction(false)
 }
 
-func (m *Model) WriteWav(w io.WriteCloser, pcm16 bool, execChan chan<- func()) {
+func (m *Model) WriteWav(w io.WriteCloser, pcm16 bool, execChan chan<- func(), onFinish *func()) {
 	m.dialog = NoDialog
 	song := m.d.Song.Copy()
 	go func() {
-		b := make([]byte, 32+2)
-		rand.Read(b)
-		name := fmt.Sprintf("%x", b)[2 : 32+2]
-		data, err := sointu.Play(m.synther, song, func(p float32) {
-			execChan <- func() {
-				m.Alerts().AddNamed(name, fmt.Sprintf("Exporting song: %.0f%%", p*100), Info)
-			}
-		}) // render the song to calculate its length
-		if err != nil {
-			execChan <- func() {
-				m.Alerts().Add(fmt.Sprintf("Error rendering the song during export: %v", err), Error)
-			}
-			return
+		m.writeWav(w, pcm16, execChan, song)
+		if onFinish != nil {
+			(*onFinish)()
 		}
-		buffer, err := data.Wav(pcm16)
-		if err != nil {
-			execChan <- func() {
-				m.Alerts().Add(fmt.Sprintf("Error converting to .wav: %v", err), Error)
-			}
-			return
-		}
-		w.Write(buffer)
-		w.Close()
 	}()
+}
+
+func (m *Model) writeWav(w io.WriteCloser, pcm16 bool, execChan chan<- func(), song sointu.Song) {
+	b := make([]byte, 32+2)
+	rand.Read(b)
+	name := fmt.Sprintf("%x", b)[2 : 32+2]
+	data, err := sointu.Play(m.synther, song, func(p float32) {
+		execChan <- func() {
+			m.Alerts().AddNamed(name, fmt.Sprintf("Exporting song: %.0f%%", p*100), Info)
+		}
+	}) // render the song to calculate its length
+	if err != nil {
+		fmt.Println("ERROR:", err)
+		execChan <- func() {
+			m.Alerts().Add(fmt.Sprintf("Error rendering the song during export: %v", err), Error)
+		}
+		return
+	}
+	buffer, err := data.Wav(pcm16)
+	if err != nil {
+		execChan <- func() {
+			m.Alerts().Add(fmt.Sprintf("Error converting to .wav: %v", err), Error)
+		}
+		return
+	}
+	w.Write(buffer)
+	w.Close()
 }
 
 func (m *Model) SaveInstrument(w io.WriteCloser) bool {

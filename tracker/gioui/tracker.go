@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"image"
 	"io"
+	"os"
 	"path/filepath"
 	"sync"
 	"time"
@@ -49,6 +50,7 @@ type (
 		SongPanel        *SongPanel
 
 		filePathString tracker.String
+		fixedExportWav string
 
 		quitWG   sync.WaitGroup
 		execChan chan func()
@@ -66,7 +68,7 @@ const (
 	ConfirmNew
 )
 
-func NewTracker(model *tracker.Model) *Tracker {
+func NewTracker(model *tracker.Model, fixedExportWav string) *Tracker {
 	t := &Tracker{
 		Theme:             material.NewTheme(),
 		OctaveNumberInput: NewNumberInput(model.Octave().Int()),
@@ -87,6 +89,7 @@ func NewTracker(model *tracker.Model) *Tracker {
 		Model: model,
 
 		filePathString: model.FilePath().String(),
+		fixedExportWav: fixedExportWav, // QM: why the wrapping in String? find out later
 		execChan:       make(chan func(), 1024),
 	}
 	t.Theme.Shaper = text.NewShaper(text.WithCollection(fontCollection))
@@ -98,7 +101,7 @@ func NewTracker(model *tracker.Model) *Tracker {
 	return t
 }
 
-func (t *Tracker) Main() {
+func (t *Tracker) Main(onlyExport bool) {
 	titleFooter := ""
 	w := app.NewWindow(
 		app.Size(unit.Dp(800), unit.Dp(600)),
@@ -112,6 +115,15 @@ func (t *Tracker) Main() {
 	// Make a channel to signal the end of processing a window event.
 	acks := make(chan struct{})
 	go eventLoop(w, events, acks)
+	// justExportWav := make(chan bool, 1)
+	// if justExportFilename != "" {
+	// 	// fmt.Println("Just export wav (float32):", justExportFilename)
+	// 	// justExportWav <- true
+	// 	t.JustWriteWav(justExportFilename)
+	// }
+	if onlyExport {
+		t.OnlyExportWav()
+	}
 	var ops op.Ops
 	for {
 		if titleFooter != t.filePathString.Value() {
@@ -182,6 +194,7 @@ func eventLoop(w *app.Window, events chan<- event.Event, acks <-chan struct{}) {
 }
 
 func (t *Tracker) Exec() chan<- func() {
+
 	return t.execChan
 }
 
@@ -252,7 +265,7 @@ func (t *Tracker) showDialog(gtx C) {
 			filename = p[:len(p)-len(filepath.Ext(p))] + ".wav"
 		}
 		t.explorerCreateFile(func(wc io.WriteCloser) {
-			t.WriteWav(wc, t.Dialog() == tracker.ExportInt16Explorer, t.execChan)
+			t.WriteWav(wc, t.Dialog() == tracker.ExportInt16Explorer, t.Exec(), nil)
 		}, filename)
 	}
 }
@@ -285,6 +298,18 @@ func (t *Tracker) explorerCreateFile(success func(io.WriteCloser), filename stri
 			}
 		}
 	}()
+}
+
+func (t *Tracker) OnlyExportWav() {
+	file, err := os.Create(t.fixedExportWav)
+	if err != nil {
+		fmt.Printf("Error creating file: %v\n", err)
+		return
+	}
+	onFinish := func() {
+		t.Quit().Do()
+	}
+	t.WriteWav(file, false, t.Exec(), &onFinish)
 }
 
 func (t *Tracker) layoutBottom(gtx layout.Context) layout.Dimensions {

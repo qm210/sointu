@@ -44,6 +44,7 @@ func init() {
 
 var defaultUnits = map[string]sointu.Unit{
 	"envelope":   {Type: "envelope", Parameters: map[string]int{"stereo": 0, "attack": 64, "decay": 64, "sustain": 64, "release": 64, "gain": 64}},
+	"envel210":   {Type: "envel210", Parameters: map[string]int{"stereo": 0, "attack": 64, "exp_attack": 0, "decay": 64, "exp_decay": 0, "sustain": 64, "release": 64, "gain": 64}},
 	"oscillator": {Type: "oscillator", Parameters: map[string]int{"stereo": 0, "transpose": 64, "detune": 64, "phase": 0, "color": 64, "shape": 64, "gain": 64, "type": sointu.Sine}},
 	"noise":      {Type: "noise", Parameters: map[string]int{"stereo": 0, "shape": 64, "gain": 64}},
 	"mulp":       {Type: "mulp", Parameters: map[string]int{"stereo": 0}},

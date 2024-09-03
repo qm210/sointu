@@ -329,6 +329,39 @@ func (s *GoSynth) Render(buffer sointu.AudioBuffer, maxtime int) (samples int, t
 				if stereo {
 					stack = append(stack, output)
 				}
+			case opEnvel210:
+				if !voices[0].sustain {
+					unit.state[0] = envStateRelease // set state to release
+				}
+				state := unit.state[0]
+				level := unit.state[1]
+				switch state {
+				case envStateAttack:
+					// exp_attack := params[1]
+					level += nonLinearMap(params[0])
+					if level >= 1 {
+						level = 1
+						state = envStateDecay
+					}
+				case envStateDecay:
+					// exp_decay := params[3]
+					level -= nonLinearMap(params[2])
+					if sustain := params[4]; level <= sustain {
+						level = sustain
+					}
+				case envStateRelease:
+					level -= nonLinearMap(params[5])
+					if level <= 0 {
+						level = 0
+					}
+				}
+				unit.state[0] = state
+				unit.state[1] = level
+				output := level * params[6]
+				stack = append(stack, output)
+				if stereo {
+					stack = append(stack, output)
+				}
 			case opNoise:
 				if stereo {
 					value := waveshape(synth.rand(), params[0]) * params[1]

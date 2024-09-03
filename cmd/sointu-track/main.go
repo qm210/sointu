@@ -30,6 +30,8 @@ func (NullContext) BPM() (bpm float64, ok bool) {
 
 var cpuprofile = flag.String("cpuprofile", "", "write cpu profile to `file`")
 var memprofile = flag.String("memprofile", "", "write memory profile to `file`")
+var fixedExportWav = flag.String("export", "", "fixed export .WAV `file` (will use float32)")
+var onlyExportWav = flag.Bool("export-only", false, "only write wav, needs --export")
 
 func main() {
 	flag.Parse()
@@ -62,7 +64,7 @@ func main() {
 		}
 		f.Close()
 	}
-	tracker := gioui.NewTracker(model)
+	tracker := gioui.NewTracker(model, *fixedExportWav)
 	output := audioContext.Output()
 	defer output.Close()
 	go func() {
@@ -74,7 +76,8 @@ func main() {
 		}
 	}()
 	go func() {
-		tracker.Main()
+		tracker.Main(*onlyExportWav)
+
 		if *cpuprofile != "" {
 			pprof.StopCPUProfile()
 			f.Close()
