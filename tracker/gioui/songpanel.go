@@ -62,7 +62,7 @@ func NewSongPanel(model *tracker.Model) *SongPanel {
 		{IconBytes: icons.FileFolder, Text: "Open Song", ShortcutText: shortcutKey + "O", Doer: model.OpenSong()},
 		{IconBytes: icons.ContentSave, Text: "Save Song", ShortcutText: shortcutKey + "S", Doer: model.SaveSong()},
 		{IconBytes: icons.ContentSave, Text: "Save Song As...", Doer: model.SaveSongAs()},
-		{IconBytes: icons.ImageAudiotrack, Text: "Export Wav...", Doer: model.Export()},
+		{IconBytes: icons.ImageAudiotrack, Text: "Export Wav...", ShortcutText: "F10", Doer: model.Export()},
 	}
 	if canQuit {
 		ret.fileMenuItems = append(ret.fileMenuItems, MenuItem{IconBytes: icons.ActionExitToApp, Text: "Quit", Doer: model.Quit()})

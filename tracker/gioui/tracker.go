@@ -22,6 +22,7 @@ import (
 	"gioui.org/unit"
 	"gioui.org/widget/material"
 	"gioui.org/x/explorer"
+
 	"github.com/vsariola/sointu/tracker"
 )
 
@@ -49,8 +50,8 @@ type (
 		Exploring        bool
 		SongPanel        *SongPanel
 
-		filePathString tracker.String
-		fixedExportWav string
+		filePathString      tracker.String
+		fixedFloatExportWav string
 
 		quitWG   sync.WaitGroup
 		execChan chan func()
@@ -88,9 +89,9 @@ func NewTracker(model *tracker.Model, fixedExportWav string) *Tracker {
 
 		Model: model,
 
-		filePathString: model.FilePath().String(),
-		fixedExportWav: fixedExportWav, // QM: why the wrapping in String? find out later
-		execChan:       make(chan func(), 1024),
+		filePathString:      model.FilePath().String(),
+		fixedFloatExportWav: fixedExportWav, // QM: why the wrapping in String? find out later
+		execChan:            make(chan func(), 1024),
 	}
 	t.Theme.Shaper = text.NewShaper(text.WithCollection(fontCollection))
 	t.PopupAlert = NewPopupAlert(model.Alerts(), t.Theme.Shaper)
@@ -122,7 +123,7 @@ func (t *Tracker) Main(onlyExport bool) {
 	// 	t.JustWriteWav(justExportFilename)
 	// }
 	if onlyExport {
-		t.OnlyExportWav()
+		t.ExportToFixedWav(true)
 	}
 	var ops op.Ops
 	for {
@@ -247,10 +248,15 @@ func (t *Tracker) showDialog(gtx C) {
 		dstyle.AltStyle.Text = "Don't save"
 		dstyle.Layout(gtx)
 	case tracker.Export:
-		dstyle := ConfirmDialog(gtx, t.Theme, t.WaveTypeDialog, "", "Export .wav in int16 or float32 sample format?")
-		dstyle.OkStyle.Text = "Int16"
-		dstyle.AltStyle.Text = "Float32"
-		dstyle.Layout(gtx)
+		if t.fixedFloatExportWav != "" {
+			// qm: yeah yeah this distinction should be elsewhere, but no idea how the go imports work
+			t.ExportToFixedWav(false)
+		} else {
+			dstyle := ConfirmDialog(gtx, t.Theme, t.WaveTypeDialog, "", "Export .wav in int16 or float32 sample format?")
+			dstyle.OkStyle.Text = "Int16"
+			dstyle.AltStyle.Text = "Float32"
+			dstyle.Layout(gtx)
+		}
 	case tracker.OpenSongOpenExplorer:
 		t.explorerChooseFile(t.ReadSong, ".yml", ".json")
 	case tracker.NewSongSaveExplorer, tracker.OpenSongSaveExplorer, tracker.QuitSaveExplorer, tracker.SaveAsExplorer:
@@ -268,6 +274,10 @@ func (t *Tracker) showDialog(gtx C) {
 			t.WriteWav(wc, t.Dialog() == tracker.ExportInt16Explorer, t.Exec(), nil)
 		}, filename)
 	}
+}
+
+func (t *Tracker) ShowExportDialog() {
+	t.Model.Export().Do()
 }
 
 func (t *Tracker) explorerChooseFile(success func(io.ReadCloser), extensions ...string) {
@@ -300,16 +310,26 @@ func (t *Tracker) explorerCreateFile(success func(io.WriteCloser), filename stri
 	}()
 }
 
-func (t *Tracker) OnlyExportWav() {
-	file, err := os.Create(t.fixedExportWav)
+func (t *Tracker) ExportToFixedWav(thenQuit bool) {
+	file, err := os.Create(t.fixedFloatExportWav)
 	if err != nil {
 		fmt.Printf("Error creating file: %v\n", err)
 		return
 	}
 	onFinish := func() {
-		t.Quit().Do()
+		if thenQuit {
+			t.Quit().Do()
+		}
 	}
 	t.WriteWav(file, false, t.Exec(), &onFinish)
+}
+
+func (t *Tracker) ExportToFixedWavOrAsk() {
+	if t.fixedFloatExportWav != "" {
+		t.ExportToFixedWav(false)
+	} else {
+		t.ShowExportDialog()
+	}
 }
 
 func (t *Tracker) layoutBottom(gtx layout.Context) layout.Dimensions {

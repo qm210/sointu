@@ -135,6 +135,9 @@ func (t *Tracker) KeyEvent(e key.Event, gtx C) {
 		case "F8":
 			t.SongPanel.NoteTracking.Bool.Toggle()
 			return
+		case "F10":
+			t.ExportToFixedWavOrAsk()
+			return
 		case "F12":
 			t.Panic().Bool().Toggle()
 			return
