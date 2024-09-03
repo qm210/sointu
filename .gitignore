@@ -34,3 +34,5 @@ actual_output/
 
 **/testdata/fuzz/
 .DS_Store
+
+.wav
