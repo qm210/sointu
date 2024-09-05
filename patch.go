@@ -146,9 +146,9 @@ var UnitTypes = map[string]([]UnitParameter){
 	"envel210": []UnitParameter{
 		{Name: "stereo", MinValue: 0, MaxValue: 1, CanSet: true, CanModulate: false},
 		{Name: "attack", MinValue: 0, MaxValue: 128, CanSet: true, CanModulate: true},
-		{Name: "exp_attack", MinValue: -65, MaxValue: 64, CanSet: true, CanModulate: true},
+		{Name: "exp_attack", MinValue: 0, MaxValue: 128, CanSet: true, CanModulate: true},
 		{Name: "decay", MinValue: 0, MaxValue: 128, CanSet: true, CanModulate: true},
-		{Name: "exp_decay", MinValue: -65, MaxValue: 64, CanSet: true, CanModulate: true},
+		{Name: "exp_decay", MinValue: 0, MaxValue: 128, CanSet: true, CanModulate: true},
 		{Name: "sustain", MinValue: 0, MaxValue: 128, CanSet: true, CanModulate: true},
 		{Name: "release", MinValue: 0, MaxValue: 128, CanSet: true, CanModulate: true},
 		{Name: "gain", MinValue: 0, MaxValue: 128, CanSet: true, CanModulate: true}},
@@ -397,7 +397,20 @@ func (p Patch) ParamHintString(instrIndex, unitIndex int, param string) string {
 	unit := instr.Units[unitIndex]
 	value := unit.Parameters[param]
 	switch unit.Type {
-	case "envelope", "envel210":
+	case "envel210":
+		switch param {
+		case "exp_attack":
+			fallthrough
+		case "exp_decay":
+			return fmt.Sprintf("= %.3f", math.Pow(2, float64(value-64)/32))
+		case "attack":
+			return "..? ms"
+		case "decay":
+			return "..? ms"
+		case "release":
+			return "..? ms"
+		}
+	case "envelope":
 		switch param {
 		case "attack":
 			return engineeringTime(math.Pow(2, 24*float64(value)/128) / 44100)
@@ -405,11 +418,6 @@ func (p Patch) ParamHintString(instrIndex, unitIndex int, param string) string {
 			return engineeringTime(math.Pow(2, 24*float64(value)/128) / 44100 * (1 - float64(unit.Parameters["sustain"])/128))
 		case "release":
 			return engineeringTime(math.Pow(2, 24*float64(value)/128) / 44100 * float64(unit.Parameters["sustain"]) / 128)
-		// "envel210" only:
-		case "exp_attack":
-			fallthrough
-		case "exp_decay":
-			return fmt.Sprintf("%.2f s", float64(value)/8)
 		}
 	case "oscillator":
 		switch param {

@@ -141,6 +141,9 @@ func (t *Tracker) KeyEvent(e key.Event, gtx C) {
 		case "F12":
 			t.Panic().Bool().Toggle()
 			return
+		case key.NameEscape:
+			t.Quit().Do()
+			return
 		case `\`, `<`, `>`:
 			if e.Modifiers.Contain(key.ModShift) {
 				t.OctaveNumberInput.Int.Add(1)

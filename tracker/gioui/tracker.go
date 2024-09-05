@@ -105,7 +105,7 @@ func NewTracker(model *tracker.Model, fixedExportWav string) *Tracker {
 func (t *Tracker) Main(onlyExport bool) {
 	titleFooter := ""
 	w := app.NewWindow(
-		app.Size(unit.Dp(800), unit.Dp(600)),
+		app.Size(unit.Dp(1600), unit.Dp(900)),
 		app.Title("Sointu Tracker"),
 	)
 	t.InstrumentEditor.Focus()
@@ -116,14 +116,9 @@ func (t *Tracker) Main(onlyExport bool) {
 	// Make a channel to signal the end of processing a window event.
 	acks := make(chan struct{})
 	go eventLoop(w, events, acks)
-	// justExportWav := make(chan bool, 1)
-	// if justExportFilename != "" {
-	// 	// fmt.Println("Just export wav (float32):", justExportFilename)
-	// 	// justExportWav <- true
-	// 	t.JustWriteWav(justExportFilename)
-	// }
-	if onlyExport {
-		t.ExportToFixedWav(true)
+
+	if t.fixedFloatExportWav != "" {
+		t.ExportToFixedWav(onlyExport)
 	}
 	var ops op.Ops
 	for {

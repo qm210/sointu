@@ -333,19 +333,75 @@ func (s *GoSynth) Render(buffer sointu.AudioBuffer, maxtime int) (samples int, t
 				if !voices[0].sustain {
 					unit.state[0] = envStateRelease // set state to release
 				}
+				// qm guess: state is the ADSR segment index (i.e. an integer)
 				state := unit.state[0]
+				// qm guess: level is the value of the envelope's previous sample
 				level := unit.state[1]
+				// qm fun fact: "time" is not actually the time, it is sample number
+				peak_sample := int(1 / nonLinearMap(params[0]))
+
+				// bent_curve := func(param float32, exp_param float32, sample_offset int) float32 {
+				// 	exponent := float64(math.Pow(2, 4*float64(exp_param-0.5)))
+				// 	sample := float64(time - sample_offset)
+				// 	if sample == 0 {
+				// 		return 0
+				// 	}
+				// 	return float32(math.Pow(sample/float64(peak_sample), exponent))
+				// }
+
+				bent_slope := func(param float32, exp_param float32, sample_offset int) float32 {
+					// fits the current convention of exp_attack / exp_decay to be in 1/16 .. 16
+					exponent := float64(math.Pow(2, 4*float64(exp_param-0.5)))
+
+					n_peak := float64(peak_sample)
+					dt := float64(1) / 44100
+					f1 := math.Pow(n_peak, -exponent)
+					// discrete attempt
+					if level == 0 {
+						if time == 0 {
+							return 0
+						} else {
+							fmt.Println("!!", time, level, float32(exponent*f1*dt))
+							return float32(exponent * f1 * dt)
+						}
+					}
+					lev := float64(level)
+					pot := math.Pow(lev, 1/exponent)
+					res := f1*(n_peak*pot+1.) - lev
+					if time < 3 {
+						fmt.Println(time, exponent, lev, "|", n_peak, f1, pot, res)
+					}
+					return float32(res)
+
+					factor := exponent * math.Pow(float64(peak_sample), -exponent)
+					// we cannot use the sample number here because of the SamplesPerRow() chunking
+					potency := math.Pow(float64(level), (exponent-1)/exponent)
+					if potency == 0 {
+						if time == 0 {
+							return 0
+						} else {
+							return float32(factor)
+						}
+					}
+					result := float32(factor * potency)
+					if time < 3 {
+						fmt.Println("DEBUG", time, exp_param, sample_offset, "|", level, "|", peak_sample, exponent, factor, potency, " -> ", result)
+					}
+					return result
+				}
+
 				switch state {
 				case envStateAttack:
-					// exp_attack := params[1]
-					level += nonLinearMap(params[0])
+					delta := bent_slope(params[0], params[1], 0)
+					level += delta
 					if level >= 1 {
 						level = 1
 						state = envStateDecay
 					}
 				case envStateDecay:
-					// exp_decay := params[3]
-					level -= nonLinearMap(params[2])
+					delta := nonLinearMap(params[2]) // old linear way
+					// delta := bent_slope(params[2], params[3], peak_sample)
+					level -= delta
 					if sustain := params[4]; level <= sustain {
 						level = sustain
 					}
@@ -639,6 +695,7 @@ func (s *synthState) rand() float32 {
 	return float32(int32(s.randSeed)) / -2147483648.0
 }
 
+// qm: just to scale the time ranges
 func nonLinearMap(value float32) float32 {
 	return float32(math.Exp2(float64(-24 * value)))
 }
