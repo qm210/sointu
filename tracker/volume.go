@@ -2,6 +2,7 @@ package tracker
 
 import (
 	"errors"
+	"fmt"
 	"math"
 
 	"github.com/vsariola/sointu"
@@ -21,7 +22,17 @@ type (
 	}
 )
 
-var nanError = errors.New("NaN detected in master output")
+func nanError(counter int, sample int, channel int, bufferLength int) error {
+	var msg string = ""
+	if counter == 0 {
+		return nil
+	} else if counter == 1 {
+		msg = fmt.Sprintf("NaN detected in master output: sample %d, channel %d", sample, channel)
+	} else {
+		msg = fmt.Sprintf("%d NaNs detected in master output, first at sample %d, channel %d (buffer length %d)", counter, sample, channel, bufferLength)
+	}
+	return errors.New(msg)
+}
 
 // Update updates the Level field, by analyzing the given buffer.
 //
@@ -41,13 +52,19 @@ func (v *VolumeAnalyzer) Update(buffer sointu.AudioBuffer) (err error) {
 	// from https://en.wikipedia.org/wiki/Exponential_smoothing
 	alphaAttack := 1 - math.Exp(-1.0/(v.Attack*44100))
 	alphaRelease := 1 - math.Exp(-1.0/(v.Release*44100))
+	// qm: error info for debugging
+	var nanCounter = 0
+	var firstNaNsampleIndex = 0
+	var firstNaNsampleChannel = 0
 	for j := 0; j < 2; j++ {
 		for i := 0; i < len(buffer); i++ {
 			sample2 := float64(buffer[i][j] * buffer[i][j])
 			if math.IsNaN(sample2) {
-				if err == nil {
-					err = nanError
+				if nanCounter == 0 {
+					firstNaNsampleIndex = i
+					firstNaNsampleChannel = j
 				}
+				nanCounter++
 				continue
 			}
 			dB := 10 * math.Log10(sample2)
@@ -64,5 +81,15 @@ func (v *VolumeAnalyzer) Update(buffer sointu.AudioBuffer) (err error) {
 			v.Level[j] += (dB - v.Level[j]) * a
 		}
 	}
-	return err
+	if nanCounter == 0 {
+		return nil
+	} else {
+		err = nanError(
+			nanCounter,
+			firstNaNsampleIndex,
+			firstNaNsampleChannel,
+			len(buffer))
+		fmt.Println(err)
+		return err
+	}
 }

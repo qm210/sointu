@@ -337,72 +337,44 @@ func (s *GoSynth) Render(buffer sointu.AudioBuffer, maxtime int) (samples int, t
 				state := unit.state[0]
 				// qm guess: level is the value of the envelope's previous sample
 				level := unit.state[1]
-				// qm fun fact: "time" is not actually the time, it is sample number
-				peak_sample := int(1 / nonLinearMap(params[0]))
 
-				// bent_curve := func(param float32, exp_param float32, sample_offset int) float32 {
-				// 	exponent := float64(math.Pow(2, 4*float64(exp_param-0.5)))
-				// 	sample := float64(time - sample_offset)
-				// 	if sample == 0 {
-				// 		return 0
-				// 	}
-				// 	return float32(math.Pow(sample/float64(peak_sample), exponent))
-				// }
-
-				bent_slope := func(param float32, exp_param float32, sample_offset int) float32 {
-					// fits the current convention of exp_attack / exp_decay to be in 1/16 .. 16
-					exponent := float64(math.Pow(2, 4*float64(exp_param-0.5)))
-
-					n_peak := float64(peak_sample)
-					dt := float64(1) / 44100
-					f1 := math.Pow(n_peak, -exponent)
-					// discrete attempt
-					if level == 0 {
-						if time == 0 {
-							return 0
-						} else {
-							fmt.Println("!!", time, level, float32(exponent*f1*dt))
-							return float32(exponent * f1 * dt)
-						}
+				bent_slope := func(param float32, exp_param float32, from_level float32, to_level float32) float32 {
+					// note: we cannot use "time" (the sample number) in here because of the SamplesPerRow() chunking
+					height := float64(to_level - from_level)
+					var sign float64
+					if height < 0 {
+						sign = -1
+					} else {
+						sign = 1
 					}
-					lev := float64(level)
-					pot := math.Pow(lev, 1/exponent)
-					res := f1*(n_peak*pot+1.) - lev
-					if time < 3 {
-						fmt.Println(time, exponent, lev, "|", n_peak, f1, pot, res)
+					base := float64(to_level-level) / height
+					exponent := sign * math.Pow(2, 4*sign*float64(exp_param-0.5))
+					inverse_samples := float64(nonLinearMap(param))
+					factor := float64(height) * inverse_samples
+					potency := math.Pow(base, -(exponent-sign)/exponent)
+					result := factor * potency
+					if time < 3 && sign > 0 {
+						fmt.Println(" DEBUG", sign, time, param, exp_param, "|", level, "|", base, exponent, height, inverse_samples, factor, potency, " -> ", result)
 					}
-					return float32(res)
-
-					factor := exponent * math.Pow(float64(peak_sample), -exponent)
-					// we cannot use the sample number here because of the SamplesPerRow() chunking
-					potency := math.Pow(float64(level), (exponent-1)/exponent)
-					if potency == 0 {
-						if time == 0 {
-							return 0
-						} else {
-							return float32(factor)
-						}
-					}
-					result := float32(factor * potency)
-					if time < 3 {
-						fmt.Println("DEBUG", time, exp_param, sample_offset, "|", level, "|", peak_sample, exponent, factor, potency, " -> ", result)
-					}
-					return result
+					return float32(result)
 				}
 
 				switch state {
 				case envStateAttack:
-					delta := bent_slope(params[0], params[1], 0)
+					delta := bent_slope(params[0], params[1], 0, 1)
 					level += delta
-					if level >= 1 {
+					attack_finished := level >= 1 || delta < 1e-8
+					// for exponent < 1, we need to check quasi-flatness
+					if attack_finished {
 						level = 1
 						state = envStateDecay
 					}
 				case envStateDecay:
-					delta := nonLinearMap(params[2]) // old linear way
-					// delta := bent_slope(params[2], params[3], peak_sample)
-					level -= delta
-					if sustain := params[4]; level <= sustain {
+					sustain := params[4]
+					level += bent_slope(params[2], params[3], 1, sustain)
+					// old (linear) slope:
+					// level += -nonLinearMap(params[2])
+					if level <= sustain {
 						level = sustain
 					}
 				case envStateRelease:
@@ -411,6 +383,7 @@ func (s *GoSynth) Render(buffer sointu.AudioBuffer, maxtime int) (samples int, t
 						level = 0
 					}
 				}
+
 				unit.state[0] = state
 				unit.state[1] = level
 				output := level * params[6]
@@ -671,6 +644,23 @@ func (s *GoSynth) Render(buffer sointu.AudioBuffer, maxtime int) (samples int, t
 				return samples, time, errors.New("invalid / unimplemented opcode")
 			}
 			units = units[1:]
+
+			voiceNumber := s.bytecode.NumVoices - voicesRemaining
+			if stereo {
+				if math.IsNaN(float64(stack[len(stack)-1])) {
+					fmt.Println("NaN in Track", voiceNumber, "(Right),", operatorName[opNoStereo])
+					stack[len(stack)-1] = 0
+				}
+				if math.IsNaN(float64(stack[len(stack)-2])) {
+					fmt.Println("NaN in Track", voiceNumber, "(Left),", operatorName[opNoStereo])
+					stack[len(stack)-2] = 0
+				}
+			} else {
+				if math.IsNaN(float64(stack[len(stack)-1])) {
+					fmt.Println("NaN in Track", voiceNumber, "(Mono),", operatorName[opNoStereo])
+					stack[len(stack)-1] = 0
+				}
+			}
 		}
 		if len(stack) < 4 {
 			return samples, time, errors.New("stack underflow")

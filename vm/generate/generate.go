@@ -46,4 +46,14 @@ func main() {
 		fmt.Fprintf(outputFile, "%v", features.TransformCount(instr))
 	}
 	fmt.Fprintln(outputFile, "}")
+
+	// qm: put here for debugging NaNs
+	fmt.Fprintln(outputFile, "")
+	fmt.Fprintf(outputFile, "var operatorName = [%v]string{\n", len(features.Instructions())+1)
+	fmt.Fprint(outputFile, "    \"--\"")
+	for _, instr := range features.Instructions() {
+		fmt.Fprintln(outputFile, ",")
+		fmt.Fprintf(outputFile, "    \"%s\"", strings.Title(instr))
+	}
+	fmt.Fprintln(outputFile, "}")
 }

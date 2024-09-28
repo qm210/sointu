@@ -404,11 +404,11 @@ func (p Patch) ParamHintString(instrIndex, unitIndex int, param string) string {
 		case "exp_decay":
 			return fmt.Sprintf("= %.3f", math.Pow(2, float64(value-64)/32))
 		case "attack":
-			return "..? ms"
+			return "~ " + engineeringTime(math.Pow(2, 24*float64(value)/128)/44100)
 		case "decay":
-			return "..? ms"
+			return "~ " + engineeringTime(math.Pow(2, 24*float64(value)/128)/44100*(1-float64(unit.Parameters["sustain"])/128))
 		case "release":
-			return "..? ms"
+			return "~ " + engineeringTime(math.Pow(2, 24*float64(value)/128)/44100*float64(unit.Parameters["sustain"])/128)
 		}
 	case "envelope":
 		switch param {

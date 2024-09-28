@@ -69,7 +69,15 @@ const (
 	ConfirmNew
 )
 
-func NewTracker(model *tracker.Model, fixedExportWav string) *Tracker {
+func NewTracker(model *tracker.Model, args ...string) *Tracker {
+	var fixedExportWav = ""
+	if len(args) > 0 {
+		fixedExportWav = args[0]
+	}
+	return newTracker(model, fixedExportWav)
+}
+
+func newTracker(model *tracker.Model, fixedExportWav string) *Tracker {
 	t := &Tracker{
 		Theme:             material.NewTheme(),
 		OctaveNumberInput: NewNumberInput(model.Octave().Int()),
@@ -102,7 +110,15 @@ func NewTracker(model *tracker.Model, fixedExportWav string) *Tracker {
 	return t
 }
 
-func (t *Tracker) Main(onlyExport bool) {
+func (t *Tracker) Main(args ...bool) {
+	var onlyExport = false
+	if len(args) > 0 {
+		onlyExport = args[0]
+	}
+	t.main(onlyExport)
+}
+
+func (t *Tracker) main(onlyExport bool) {
 	titleFooter := ""
 	w := app.NewWindow(
 		app.Size(unit.Dp(1600), unit.Dp(900)),

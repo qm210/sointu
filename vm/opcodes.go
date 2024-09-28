@@ -37,3 +37,38 @@ const (
 )
 
 var transformCounts = [...]int{0, 0, 1, 0, 5, 1, 1, 4, 1, 7, 5, 2, 1, 1, 0, 1, 0, 1, 0, 0, 2, 6, 1, 2, 1, 0, 0, 0, 1, 0, 0, 0}
+
+var operatorName = [33]string{
+    "--",
+    "Add",
+    "Addp",
+    "Aux",
+    "Clip",
+    "Compressor",
+    "Crush",
+    "Dbgain",
+    "Delay",
+    "Distort",
+    "Envel210",
+    "Envelope",
+    "Filter",
+    "Gain",
+    "Hold",
+    "In",
+    "Invgain",
+    "Loadnote",
+    "Loadval",
+    "Mul",
+    "Mulp",
+    "Noise",
+    "Oscillator",
+    "Out",
+    "Outaux",
+    "Pan",
+    "Pop",
+    "Push",
+    "Receive",
+    "Send",
+    "Speed",
+    "Sync",
+    "Xch"}
