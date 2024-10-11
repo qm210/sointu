@@ -1,0 +1,31 @@
+bpm: 100
+rowsperbeat: 4
+score:
+    tracks:
+        - numvoices: 1
+          order: [0]
+          patterns: [[72, 1, 1, 1, 0, 1, 1, 1, 1, 1, 1, 1, 1]]
+        - numvoices: 1
+          order: [0]
+          patterns: [[1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1]]
+    rowsperpattern: 16
+    length: 1
+patch:
+    - name: Env210
+      numvoices: 1
+      units:
+        - type: envel210
+          id: 16
+          parameters: {attack: 74, decay: 67, exp_attack: 64, exp_decay: 64, gain: 103, release: 68, stereo: 0, sustain: 39}
+        - type: out
+          id: 10
+          parameters: {damp: 64, dry: 128, feedback: 125, gain: 128, notetracking: 0, pregain: 40, stereo: 0}
+    - name: Global
+      numvoices: 1
+      units:
+        - type: in
+          id: 7
+          parameters: {channel: 0, stereo: 0}
+        - type: out
+          id: 9
+          parameters: {damp: 64, dry: 128, feedback: 125, gain: 128, notetracking: 0, pregain: 40, stereo: 0}
