@@ -329,7 +329,7 @@ func (t *Tracker) ExportToFixedWav(thenQuit bool) {
 	}
 	onFinish := func() {
 		if thenQuit {
-			t.Quit().Do()
+			t.ForceQuit().Do()
 		}
 	}
 	t.WriteWav(file, false, t.Exec(), &onFinish)

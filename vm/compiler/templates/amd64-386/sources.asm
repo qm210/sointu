@@ -63,6 +63,71 @@ su_op_envelope_leave2:
 {{end}}
 
 
+{{if .HasOp "envel210" -}}
+;-------------------------------------------------------------------------------
+;   ENVEL210 opcode: pushes an exp-sloped ADSR envel210 value on stack [0,1]
+;-------------------------------------------------------------------------------
+;   Mono:   push the envel210 value on stack
+;   Stereo: push the envel210 valeu on stack twice
+;-------------------------------------------------------------------------------
+{{.Func "su_op_envel210" "Opcode"}}
+{{- if .StereoAndMono "envel210"}}
+    jnc     su_op_envel210_mono
+{{- end}}
+{{- if .Stereo "envel210"}}
+    call    su_op_envel210_mono
+    fld     st0
+    ret
+su_op_envel210_mono:
+{{- end}}
+    mov     eax, dword [{{.INP}}-su_voice.inputs+su_voice.sustain] ; eax = su_instrument.sustain
+    test    eax, eax                            ; if (eax != 0)
+    jne     su_op_envel210_process              ;   goto process
+    mov     al, {{.InputNumber "envel210" "release"}}  ; [state]=RELEASE
+    mov     dword [{{.WRK}}], eax               ; note that mov al, XXX; mov ..., eax is less bytes than doing it directly
+su_op_envel210_process:
+    mov     eax, dword [{{.WRK}}]  ; al=[state]
+    fld     dword [{{.WRK}}+4]       ; x=[level]
+    cmp     al, {{.InputNumber "envel210" "sustain"}}               ; if (al==SUSTAIN)
+    je      short su_op_envel210_leave2         ;   goto leave2
+su_op_envel210_attac:
+    cmp     al, {{.InputNumber "envel210" "attack"}}                 ; if (al!=ATTAC)
+    jne     short su_op_envel210_decay          ;   goto decay
+    {{.Call "su_nonlinear_map"}}                ; a x, where a=attack
+    faddp   st1, st0                            ; a+x
+    fld1                                        ; 1 a+x
+    fucomi  st1                                 ; if (a+x<=1) // is attack complete?
+    fcmovnb st0, st1                            ;   a+x a+x
+    jbe     short su_op_envel210_statechange    ; else goto statechange
+su_op_envel210_decay:
+    cmp     al, {{.InputNumber "envel210" "decay"}}                 ; if (al!=DECAY)
+    jne     short su_op_envel210_release        ;   goto release
+    {{.Call "su_nonlinear_map"}}                ; d x, where d=decay
+    fsubp   st1, st0                            ; x-d
+    fld     dword [{{.Input "envel210" "sustain"}}]    ; s x-d, where s=sustain
+    fucomi  st1                                 ; if (x-d>s) // is decay complete?
+    fcmovb  st0, st1                            ;   x-d x-d
+    jnc     short su_op_envel210_statechange    ; else goto statechange
+su_op_envel210_release:
+    cmp     al, {{.InputNumber "envel210" "release"}}               ; if (al!=RELEASE)
+    jne     short su_op_envel210_leave          ;   goto leave
+    {{.Call "su_nonlinear_map"}}                ; r x, where r=release
+    fsubp   st1, st0                            ; x-r
+    fldz                                        ; 0 x-r
+    fucomi  st1                                 ; if (x-r>0) // is release complete?
+    fcmovb  st0, st1                            ;   x-r x-r, then goto leave
+    jc      short su_op_envel210_leave
+su_op_envel210_statechange:
+    inc     dword [{{.WRK}}]       ; [state]++
+su_op_envel210_leave:
+    fstp    st1                                 ; x', where x' is the new value
+    fst     dword [{{.WRK}}+4]       ; [level]=x'
+su_op_envel210_leave2:
+    fmul    dword [{{.Input "envel210" "gain"}}]       ; [gain]*x'
+    ret
+{{end}}
+
+
 {{- if .HasOp "noise"}}
 ;-------------------------------------------------------------------------------
 ;   NOISE opcode: creates noise

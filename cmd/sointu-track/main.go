@@ -35,6 +35,7 @@ var onlyExportWav = flag.Bool("export-only", false, "only write wav, needs --exp
 
 func main() {
 	flag.Parse()
+	fmt.Printf("Wav Export Flags: %t \"%s\"\n", *onlyExportWav, *fixedExportWav)
 	var f *os.File
 	if *cpuprofile != "" {
 		var err error
