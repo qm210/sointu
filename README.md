@@ -538,3 +538,18 @@ The original 4klang: Dominik Ries ([gopher/Alcatraz](https://github.com/hzdgophe
 Sointu: Veikko Sariola (pestis/bC!), [Apollo/bC!](https://github.com/moitias),
 [NR4/Team210](https://github.com/LeStahL/), [PoroCYon](https://github.com/PoroCYon/4klang),
 [kendfss](https://github.com/kendfss), [anticore](https://github.com/anticore)
+
+
+QMs current quest
+-----------------
+qm210 is just trying to implement a copy of the envelope (working title "envel210") that has two shape parameters (exp_attack and exp_decay). They are implemented in the Golang synth (even though they change the time scale of the attack and decay, it somehow works - one has to fiddle around.)
+
+Current goal is to implement that into the ASM code. I want to compare (I introduced these --export and --export-only flags to debug the output in a wave editor)
+'''
+  > go build -tags=native -o sointu-track.exe .\cmd\sointu-track\main.go
+  > .\sointu-track.exe --export test.wav --export-only .\examples\envelold.yml
+    Wav Export Flags: true "test.wav"
+  > .\sointu-track.exe --export test.wav --export-only .\examples\envel210.yml
+    Wav Export Flags: true "test.wav"
+    ERROR: render failed: RenderError: FPU stack push/pops are not balanced
+'''
